@@ -138,10 +138,27 @@ data_is_decrypted() {
   "${ADB[@]}" shell 'test -r /data/system/packages.xml' >/dev/null 2>&1
 }
 
+data_is_fresh_and_writable() {
+  # shellcheck disable=SC2016 # Expanded by the recovery shell, not the host.
+  "${ADB[@]}" shell '
+    grep -qE "^[^ ]+ /data " /proc/mounts &&
+    test -w /data &&
+    test ! -e /data/system/packages.xml &&
+    test ! -d /data/system/users &&
+    probe=/data/.lineage-restore-write-test &&
+    : > "$probe" && rm -f "$probe"
+  ' >/dev/null 2>&1
+}
+
 decrypt_data_if_needed() {
   local quoted
   if data_is_decrypted; then
     echo "TWRP: /data is readable"
+    return
+  fi
+
+  if data_is_fresh_and_writable; then
+    echo "TWRP: fresh /data is mounted and writable"
     return
   fi
 
